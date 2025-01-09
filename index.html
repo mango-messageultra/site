@@ -159,7 +159,7 @@
                 }
 
                 if (username && message) {
-                    push(ref(db, "group_chat"), { username, message, timestamp, reports: 0 });
+                    push(ref(db, "ULTRA"), { username, message, timestamp, reports: 0 });
                     form.reset();
                 }
             });
