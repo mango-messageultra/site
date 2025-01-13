@@ -209,7 +209,7 @@
                         reportedMessages.push(id);
                         localStorage.setItem("reportedGroupMessages", JSON.stringify(reportedMessages));
 
-                        const messageRef = ref(db, `group_chat/${id}`);
+                        const messageRef = ref(db, `ULTRA/${id}`);
                         update(messageRef, { reports: (reports || 0) + 1 });
                         if ((reports || 0) + 1 >= 5) {
                             remove(messageRef);
