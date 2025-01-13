@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mango Message Ultra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+
+        header {
+            background-color: #ffa500;
+            color: white;
+            text-align: center;
+            padding: 1em 0;
+        }
+
+        main {
+            padding: 2em;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        form input, form textarea, form button {
+            padding: 10px;
+            font-size: 1em;
+        }
+
+        form textarea {
+            resize: none;
+        }
+
+        form button {
+            background-color: #ffa500;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        form button:hover {
+            background-color: #e59400;
+        }
+
+        #chat-wall {
+            margin-top: 2em;
+            max-width: 600px;
+            margin: 2em auto;
+        }
+
+        #messages {
+            list-style: none;
+            padding: 0;
+        }
+
+        #messages li {
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 1em;
+            margin-bottom: 1em;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        #messages li .username {
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+
+        #messages li .message-text {
+            margin: 0;
+        }
+
+        #messages li .timestamp {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 0.8em;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Mango Message Ultra - Now Seperate Servers</h1>
+    </header>
+    <main>
+        <form id="chat-form">
+            <input type="text" id="username" placeholder="Enter your username" required>
+            <textarea id="message" maxlength="75" placeholder="Write your message here (max 75 characters)" required></textarea>
+            <button type="submit">Send Message</button>
+        </form>
+        <section id="chat-wall">
+            <h2>Chat Wall</h2>
+            <ul id="messages"></ul>
+        </section>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvPATbmfj7nm2S6cG608J0oxxaq1P4WMo",
+            authDomain: "ultra-mango-servers.firebaseapp.com",
+            projectId: "ultra-mango-servers",
+            storageBucket: "ultra-mango-servers.firebasestorage.app",
+            messagingSenderId: "1042182621551",
+            appId: "1:1042182621551:web:537d26d9242b13fa68009a",
+            measurementId: "G-FW32GGJHZX"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Sanitize user input
+        function processInput(input) {
+            const hasHTML = /<\/?[a-z][\s\S]*>/i.test(input);
+            if (hasHTML) {
+                alert("HTML tags are not allowed in the message!");
+                return null;
+            }
+            return input
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.getElementById("chat-form");
+            const messagesList = document.getElementById("messages");
+
+            const bannedWords = ["gay", "nigger", "nigga", "faggot", "kike", "chink", "spic", "retard"];
+
+            form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const rawUsername = document.getElementById("username").value.trim();
+                const rawMessage = document.getElementById("message").value.trim();
+                const timestamp = new Date().toISOString();
+
+                const username = processInput(rawUsername);
+                const message = processInput(rawMessage);
+
+                if (!username || !message) {
+                    return; // Stop if sanitization fails
+                }
+
+                if (bannedWords.some((word) => message.toLowerCase().includes(word))) {
+                    alert("Your message contains inappropriate language and cannot be posted.");
+                    return;
+                }
+
+                if (username.toLowerCase() === "harris" || username.toLowerCase() === "liam") {
+                    alert("You are blocked from posting messages.");
+                    localStorage.setItem("isBlocked", "true");
+                    return;
+                }
+
+                if (message.length > 75) {
+                    alert("Messages cannot exceed 75 characters.");
+                    return;
+                }
+
+                if (username && message) {
+                    push(ref(db, "ULTRA"), { username, message, timestamp, reports: 0 });
+                    form.reset();
+                }
+            });
+
+            const messagesRef = ref(db, "ULTRA");
+            onValue(messagesRef, (snapshot) => {
+                const messages = [];
+                snapshot.forEach((childSnapshot) => {
+                    messages.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+
+                messages.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                messagesList.innerHTML = "";
+                messages.forEach(({ id, username, message, timestamp, reports }) => {
+                    const li = document.createElement("li");
+                    li.innerHTML = `
+                        <div class="username">${username}</div>
+                        <div class="message-text">${message}</div>
+                        <div class="timestamp">${new Date(timestamp).toLocaleString()}</div>
+                        <button>Report (${reports || 0})</button>
+                    `;
+
+                    const reportButton = li.querySelector("button");
+                    reportButton.addEventListener("click", () => {
+                        const reportedMessages = JSON.parse(localStorage.getItem("reportedGroupMessages")) || [];
+                        if (reportedMessages.includes(id)) {
+                            alert("You have already reported this message.");
+                            return;
+                        }
+
+                        reportedMessages.push(id);
+                        localStorage.setItem("reportedGroupMessages", JSON.stringify(reportedMessages));
+
+                        const messageRef = ref(db, `ULTRA/${id}`);
+                        update(messageRef, { reports: (reports || 0) + 1 });
+                        if ((reports || 0) + 1 >= 5) {
+                            remove(messageRef);
+                        }
+                    });
+
+                    messagesList.appendChild(li);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
